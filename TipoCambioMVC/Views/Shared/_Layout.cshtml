@@ -27,6 +27,11 @@
         </div>
     </nav>
     <main class="container py-4">
+        @* Alertas globales *@
+        @if (TempData["Error"] is string err)
+        {
+            <div class="alert alert-danger">@err</div>
+        }
         @RenderBody()
     </main>
 

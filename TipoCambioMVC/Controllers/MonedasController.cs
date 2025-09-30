@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TipoCambioMVC.Data;
 using TipoCambioMVC.Models;
@@ -39,54 +41,80 @@ public class MonedasController : Controller
     [Authorize(Roles = "Administrador, Normal")]
     public async Task<IActionResult> AgregarFavorita(string codigo, bool esPrincipal = false)
     {
-        int id = 0;
+
         var Usuario = User.FindFirstValue(ClaimTypes.Email)
                       ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
                       ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(codigo)) return RedirectToAction(nameof(Favoritas));
-        if (esPrincipal)
+
+        try
         {
-            var actuales = (await _uow.DivisasUsuario.FindAsync(x => x.IdUsuario == Usuario)).ToList();
-            foreach (var d in actuales)
+            int id = 0;
+            if (esPrincipal)
             {
-                d.IsPrincipal = false;
-                _uow.DivisasUsuario.Update(d);
-                if (d.Codigo == codigo) id = d.Id;
-            };
-            await _uow.SaveChangesAsync();
-        }
-
-        var todos = (await _uow.DivisasUsuario.FindAsync(x => x.IdUsuario == Usuario && x.Codigo == codigo)).FirstOrDefault();
-
-        if (todos != null) { id= todos.Id; esPrincipal = esPrincipal?true:todos.IsPrincipal; } 
-
-        if (id > 0)
-        {
-            var divisa = await _uow.DivisasUsuario.GetByIdAsync(id);
-            if (divisa != null)
-            {
-                divisa.IsPrincipal = esPrincipal;
-                _uow.DivisasUsuario.Update(divisa);
+                var actuales = (await _uow.DivisasUsuario.FindAsync(x => x.IdUsuario == Usuario)).ToList();
+                foreach (var d in actuales)
+                {
+                    d.IsPrincipal = false;
+                    _uow.DivisasUsuario.Update(d);
+                    if (d.Codigo == codigo) id = d.Id;
+                };
+                await _uow.SaveChangesAsync();
             }
-        }
-        else
-        {
-            await _uow.DivisasUsuario.AddAsync(new DivisaUsuario { IdUsuario = Usuario, Codigo = codigo, IsPrincipal = esPrincipal });
-        }
-        await _uow.SaveChangesAsync();
+
+            var todos = (await _uow.DivisasUsuario.FindAsync(x => x.IdUsuario == Usuario && x.Codigo == codigo)).FirstOrDefault();
+
+            if (todos != null) { id= todos.Id; esPrincipal = esPrincipal?true:todos.IsPrincipal; } 
+
+            if (id > 0)
+            {
+                var divisa = await _uow.DivisasUsuario.GetByIdAsync(id);
+                if (divisa != null)
+                {
+                    divisa.IsPrincipal = esPrincipal;
+                    _uow.DivisasUsuario.Update(divisa);
+                }
+            }
+            else
+            {
+                await _uow.DivisasUsuario.AddAsync(new DivisaUsuario { IdUsuario = Usuario, Codigo = codigo, IsPrincipal = esPrincipal });
+            }
+            await _uow.SaveChangesAsync();
+            return RedirectToAction(nameof(Favoritas));
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                TempData["Error"] = "Esa divisa ya está en tus favoritas.";
+            }
+            catch (DbUpdateException)
+            {
+                TempData["Error"] = "No se pudo guardar tu selección. Intenta de nuevo.";
+            }
+
         return RedirectToAction(nameof(Favoritas));
+
     }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    => ex.InnerException is SqlException sql && (sql.Number == 2601 || sql.Number == 2627);
 
     [HttpPost]
     [Authorize(Roles = "Administrador, Normal")]
     public async Task<IActionResult> EliminarFavorita(int id)
     {
-        var item = await _uow.DivisasUsuario.GetByIdAsync(id);
-        if (item != null)
+        try
         {
-            _uow.DivisasUsuario.Remove(item);
-            await _uow.SaveChangesAsync();
+            var item = await _uow.DivisasUsuario.GetByIdAsync(id);
+            if (item != null)
+            {
+                _uow.DivisasUsuario.Remove(item);
+                await _uow.SaveChangesAsync();
+            }
+        }
+        catch (DbUpdateException)
+        {
+            TempData["Error"] = "No se pudo eliminar. Intenta de nuevo.";
         }
         return RedirectToAction(nameof(Favoritas));
     }

@@ -7,6 +7,7 @@ using TipoCambioMVC.Data;
 using TipoCambioMVC.Models.Auth;
 using TipoCambioMVC.Models;
 using TipoCambioMVC.Security;
+using Microsoft.Data.SqlClient;
 
 namespace TipoCambioMVC.Controllers
 {
@@ -26,10 +27,9 @@ namespace TipoCambioMVC.Controllers
         public async Task<IActionResult> Login(LoginVM vm, string? returnUrl = null)
         {
             if (!ModelState.IsValid) return View(vm);
-
             var user = await _ctx.Usuarios.Include(u => u.Rol).FirstOrDefaultAsync(u => u.IdUsuario == vm.Email);
             if (user is null || !_hasher.Verify(vm.Password, user.Contrasena))
-            { ModelState.AddModelError(string.Empty, "Credenciales inválidas."); return View(vm); }
+            { ModelState.AddModelError(string.Empty, "Correo y/o contraseña incorrectos."); return View(vm); }
 
             var claims = new List<Claim>
         {
@@ -57,19 +57,38 @@ namespace TipoCambioMVC.Controllers
         public async Task<IActionResult> Register(RegisterVM vm)
         {
             if (!ModelState.IsValid) return View(vm);
+
             if (await _ctx.Usuarios.AnyAsync(u => u.IdUsuario == vm.Email))
-            { ModelState.AddModelError(nameof(vm.Email), "El email ya está registrado."); return View(vm); }
+            {
+                ModelState.AddModelError(nameof(vm.Email), "El email ya está registrado.");
+                return View(vm);
+            }
 
-            var rolNormal = await _ctx.Roles.FirstOrDefaultAsync(r => r.TipoRol == "Normal");
-            if (rolNormal is null) { rolNormal = new Rol { TipoRol = "Normal" }; _ctx.Roles.Add(rolNormal); await _ctx.SaveChangesAsync(); }
+            try
+            {
+                var rolNormal = await _ctx.Roles.FirstOrDefaultAsync(r => r.TipoRol == "Normal")
+                                ?? (await _ctx.Roles.AddAsync(new Rol { TipoRol = "Normal" })).Entity;
 
-            var hash = _hasher.Hash(vm.Password);
-            var user = new Usuario { IdUsuario = vm.Email, Nombre = vm.Nombre, Contrasena = hash, IdRol = rolNormal.IdRol };
-            _ctx.Usuarios.Add(user);
-            await _ctx.SaveChangesAsync();
+                var hash = _hasher.Hash(vm.Password);
+                _ctx.Usuarios.Add(new Usuario { IdUsuario = vm.Email, Nombre = vm.Nombre, Contrasena = hash, IdRol = rolNormal.IdRol });
+                await _ctx.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is SqlException sql && (sql.Number == 2601 || sql.Number == 2627))
+            {
+                // Si alguien registró el mismo email justo antes de tu SaveChanges
+                ModelState.AddModelError(nameof(vm.Email), "El email ya está registrado.");
+                return View(vm);
+            }
+            catch (DbUpdateException)
+            {
+                ModelState.AddModelError(string.Empty, "No se pudo completar el registro. Intenta más tarde.");
+                return View(vm);
+            }
 
+            // Autologin
             return await Login(new LoginVM { Email = vm.Email, Password = vm.Password, RememberMe = true });
         }
+
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
