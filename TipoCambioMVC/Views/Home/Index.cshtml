@@ -1,0 +1,45 @@
+@model DashboardVM
+<div class="row mb-3">
+    <div class="col">
+        <h1 class="h3">Dashboard</h1>
+        <p class="text-muted">Conversión desde la moneda base a tus favoritas.</p>
+    </div>
+</div>
+
+<form method="get" class="row g-3">
+    <div class="col-md-3">
+        <label class="form-label">Moneda Principal</label>
+        <input class="form-control" name="baseCurrency" value="@Model.BaseCurrency" placeholder="USD" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Fecha (histórico)</label>
+        <input class="form-control" type="date" name="fecha" value="@(Model.Fecha?.ToString("yyyy-MM-dd"))" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Monto</label>
+        <input class="form-control" type="number" step="0.01" name="monto" value="@Model.Monto" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100">Actualizar</button>
+    </div>
+</form>
+
+<hr />
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Moneda</th>
+            <th>Conversión</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var kv in Model.Tasas.OrderBy(k => k.Key))
+        {
+            <tr>
+                <td>@kv.Key</td>
+                <td>@kv.Value</td>
+            </tr>
+        }
+    </tbody>
+</table>

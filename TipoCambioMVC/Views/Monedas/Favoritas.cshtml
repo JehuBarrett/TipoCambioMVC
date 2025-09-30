@@ -1,0 +1,21 @@
+@model IEnumerable<TipoCambioMVC.Models.DivisaUsuario>
+<h2>Monedas Favoritas</h2>
+<table class="table table-striped">
+    <thead><tr><th>ID</th><th>Código</th><th>Principal</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var f in Model)
+    {
+        <tr>
+            <td>@f.Id</td>
+            <td>@f.Codigo</td>
+            <td>@(f.IsPrincipal ? "Sí" : "No")</td>
+            <td>
+                <form asp-action="EliminarFavorita" method="post">
+                    <input type="hidden" name="id" value="@f.Id" />
+                    <button class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

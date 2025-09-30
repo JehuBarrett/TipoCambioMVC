@@ -1,0 +1,26 @@
+@model IDictionary<string,string>
+<h2>Catálogo de Monedas</h2>
+<p class="text-muted">Selecciona monedas para agregarlas a favoritos.</p>
+<table class="table table-hover">
+    <thead><tr><th>Código</th><th>Nombre</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var kv in Model.OrderBy(x=>x.Key))
+    {
+        <tr>
+            <td>@kv.Key</td>
+            <td>@kv.Value</td>
+            <td>
+                <form asp-action="AgregarFavorita" method="post" class="d-inline">
+                    <input type="hidden" name="codigo" value="@kv.Key" />
+                    <button class="btn btn-sm btn-outline-primary">Agregar a favoritas</button>
+                </form>
+                <form asp-action="AgregarFavorita" method="post" class="d-inline ms-2">
+                    <input type="hidden" name="codigo" value="@kv.Key" />
+                    <input type="hidden" name="esPrincipal" value="true" />
+                    <button class="btn btn-sm btn-outline-success">Marcar como principal</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
