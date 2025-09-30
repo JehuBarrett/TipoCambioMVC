@@ -25,13 +25,14 @@ public class HomeController : Controller
                ?? string.Empty;
         var favoritas = (await _uow.DivisasUsuario.FindAsync(x => x.IdUsuario==Usuario)).ToList();
         var Principal = favoritas.FirstOrDefault(x => x.IsPrincipal)?.Codigo;
+        var BCG = string.IsNullOrWhiteSpace(Principal) ? "USD" : Principal;
 
         var vm = new DashboardVM
         {
-            BaseCurrency = string.IsNullOrWhiteSpace(Principal) ? "USD" : Principal,
+            BaseCurrency = BCG,
             Fecha = fecha,
             Monto = monto ?? 1m,
-            Favoritas = favoritas.Any()?favoritas.Select(x => x.Codigo).ToList() : new List<string> { "EUR", "MXN", "JPY" }
+            Favoritas = favoritas.Where(x=>!x.Codigo.Equals(BCG)).Any()?favoritas.Where(x => !x.Codigo.Equals(BCG)).Select(x => x.Codigo).ToList() : new List<string> { "EUR", "MXN", "JPY" }
         };
 
         vm.Tasas = (await _svc.ObtenerTasasAsync(vm.BaseCurrency, vm.Favoritas, vm.Fecha))

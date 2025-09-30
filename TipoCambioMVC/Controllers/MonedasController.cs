@@ -57,6 +57,10 @@ public class MonedasController : Controller
             await _uow.SaveChangesAsync();
         }
 
+        var todos = (await _uow.DivisasUsuario.FindAsync(x => x.IdUsuario == Usuario && x.Codigo == codigo)).FirstOrDefault();
+
+        if (todos != null) { id= todos.Id; esPrincipal = esPrincipal?true:todos.IsPrincipal; } 
+
         if (id > 0)
         {
             var divisa = await _uow.DivisasUsuario.GetByIdAsync(id);
